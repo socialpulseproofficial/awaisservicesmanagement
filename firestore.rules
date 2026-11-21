@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Replace owner@gmail.com with the owner's Gmail, in lower case.
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function isOwner() {
+      return verified() && request.auth.token.email.lower() == 'owner@gmail.com';
+    }
+    function isStaff() {
+      return verified() && request.auth.token.email.lower() in
+        get(/databases/$(database)/documents/config/access).data.emails;
+    }
+
+    match /config/access {
+      allow read: if verified();
+      allow write: if isOwner();
+    }
+    match /app/state {
+      allow read, write: if isOwner() || isStaff();
+    }
+  }
+}
